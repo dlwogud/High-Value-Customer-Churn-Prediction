@@ -1,15 +1,25 @@
--- 목적: 고가치 고객 이탈 라벨 생성
--- 설명: 구매 간격 분포의 상위 90% 분위수(q90=15일)를 기준으로,
---       마지막 주문의 days_since_prior_order가 15일 초과이면 churn=1로 정의
+-- 목적: target order 기준 재구매 지연 위험 라벨 생성
+-- 설명:
+-- 고빈도 고객 집단의 q90=15일 기준 절대값을 사용하여
+-- target_gap > 15 이면 delay_risk=1로 정의
 
-CREATE OR REPLACE TABLE `instacart-churn.instacart_ds.churn_labels_hv` AS
+CREATE OR REPLACE TABLE `instacart-churn.instacart_ds.delay_risk_labels_hv` AS
 SELECT
   user_id,
-  order_id,
-  order_number,
-  days_since_prior_order,
+  target_order_id,
+  target_order_number,
+  target_gap,
   CASE
-    WHEN days_since_prior_order > 15 THEN 1
+    WHEN target_gap > 15 THEN 1
     ELSE 0
-  END AS churn
+  END AS delay_risk
 FROM `instacart-churn.instacart_ds.last_orders_hv`;
+
+CREATE OR REPLACE TABLE `instacart-churn.instacart_ds.delay_risk_distribution_hv` AS
+SELECT
+  delay_risk,
+  COUNT(*) AS cnt,
+  ROUND(COUNT(*) / SUM(COUNT(*)) OVER (), 4) AS ratio
+FROM `instacart-churn.instacart_ds.delay_risk_labels_hv`
+GROUP BY delay_risk
+ORDER BY delay_risk;
